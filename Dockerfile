@@ -10,6 +10,8 @@ RUN npm run build
 FROM rust:1.88-bookworm AS backend-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+# sqlx macros require DATABASE_URL at compile time even for query_unchecked!
+ENV DATABASE_URL=postgres://postgres:postgres@localhost:5432/shikaku
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 # Pre-fetch dependencies with a dummy main so the layer is cached
 RUN mkdir src && echo 'fn main(){}' > src/main.rs && cargo build --release && rm -rf src
