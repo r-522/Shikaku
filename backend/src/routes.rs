@@ -19,8 +19,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/logout", post(auth::logout))
         .route("/me", get(auth::me));
 
-    let cert_master_routes = Router::new()
-        .route("/cert-master", get(cert_master::search_cert_master));
+    let cert_master_routes =
+        Router::new().route("/cert-master", get(cert_master::search_cert_master));
 
     let my_certs_routes = Router::new()
         .route("/", get(own_certs::list_own_certs))
@@ -31,8 +31,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/:id/abandon", post(own_certs::abandon_cert))
         .route("/:id/restore", post(own_certs::restore_cert));
 
-    let users_routes = Router::new()
-        .route("/users", get(users::list_users));
+    let users_routes = Router::new().route("/users", get(users::list_users));
 
     let favorites_routes = Router::new()
         .route("/favorites", get(favorites::list_favorites))

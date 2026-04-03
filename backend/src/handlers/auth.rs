@@ -10,8 +10,9 @@ use axum_extra::extract::{
 };
 use chrono::Utc;
 use jsonwebtoken::{encode, EncodingKey, Header};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
+use sqlx::Row;
 use uuid::Uuid;
 
 use argon2::{
@@ -19,11 +20,7 @@ use argon2::{
     Argon2,
 };
 
-use crate::{
-    errors::AppError,
-    middleware::auth::JwtClaims,
-    AppState,
-};
+use crate::{errors::AppError, middleware::auth::JwtClaims, AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct SignupRequest {
@@ -68,10 +65,7 @@ fn clear_session_cookie() -> Cookie<'static> {
         .build()
 }
 
-async fn create_session_token(
-    state: &AppState,
-    user_id: Uuid,
-) -> Result<String, AppError> {
+async fn create_session_token(state: &AppState, user_id: Uuid) -> Result<String, AppError> {
     let session_id = Uuid::new_v4();
     let now = Utc::now();
     let exp = (now + chrono::Duration::days(30)).timestamp();
@@ -92,14 +86,14 @@ async fn create_session_token(
     let expires_at = chrono::DateTime::<Utc>::from_timestamp(exp, 0)
         .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Invalid timestamp")))?;
 
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO TBL_SESSION (sesid, sesus, sestk, sesex, sestm) VALUES ($1, $2, $3, $4, $5)",
-        session_id,
-        user_id,
-        token,
-        expires_at,
-        now
     )
+    .bind(session_id)
+    .bind(user_id)
+    .bind(&token)
+    .bind(expires_at)
+    .bind(now)
     .execute(&state.db)
     .await
     .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -123,7 +117,8 @@ pub async fn signup(
         return Err(AppError::BadRequest("Username cannot be empty".to_string()));
     }
 
-    let existing = sqlx::query!("SELECT useid FROM TBL_USER WHERE useml = $1", body.email)
+    let existing = sqlx::query("SELECT useid FROM TBL_USER WHERE useml = $1")
+        .bind(&body.email)
         .fetch_optional(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -142,15 +137,15 @@ pub async fn signup(
     let user_id = Uuid::new_v4();
     let now = Utc::now();
 
-    let user = sqlx::query!(
+    let user = sqlx::query(
         "INSERT INTO TBL_USER (useid, usenm, useml, usepw, usetm, useup) VALUES ($1, $2, $3, $4, $5, $6) RETURNING useid, usenm, useml, usetm, useup",
-        user_id,
-        body.username.trim(),
-        body.email.to_lowercase(),
-        password_hash,
-        now,
-        now
     )
+    .bind(user_id)
+    .bind(body.username.trim())
+    .bind(body.email.to_lowercase())
+    .bind(password_hash)
+    .bind(now)
+    .bind(now)
     .fetch_one(&state.db)
     .await
     .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -158,11 +153,11 @@ pub async fn signup(
     let token = create_session_token(&state, user_id).await?;
 
     let user_public = serde_json::json!({
-        "useid": user.useid,
-        "usenm": user.usenm,
-        "useml": user.useml,
-        "usetm": user.usetm,
-        "useup": user.useup,
+        "useid": user.try_get::<Uuid, _>("useid").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "usenm": user.try_get::<String, _>("usenm").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "useml": user.try_get::<String, _>("useml").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "usetm": user.try_get::<chrono::DateTime<Utc>, _>("usetm").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "useup": user.try_get::<chrono::DateTime<Utc>, _>("useup").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
     });
 
     let cookie = build_session_cookie(&token, state.config.cookie_secure);
@@ -180,33 +175,42 @@ pub async fn login(
     Json(body): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     if body.email.trim().is_empty() || body.password.is_empty() {
-        return Err(AppError::BadRequest("Email and password are required".to_string()));
+        return Err(AppError::BadRequest(
+            "Email and password are required".to_string(),
+        ));
     }
 
-    let user = sqlx::query!(
+    let user = sqlx::query(
         "SELECT useid, usenm, useml, usepw, usetm, useup FROM TBL_USER WHERE useml = $1",
-        body.email.to_lowercase()
     )
+    .bind(body.email.to_lowercase())
     .fetch_optional(&state.db)
     .await
     .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?
     .ok_or_else(|| AppError::Unauthorized)?;
 
-    let parsed_hash = PasswordHash::new(&user.usepw)
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Password hash parse error: {}", e)))?;
+    let parsed_hash = PasswordHash::new(
+        &user
+            .try_get::<String, _>("usepw")
+            .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+    )
+    .map_err(|e| AppError::Internal(anyhow::anyhow!("Password hash parse error: {}", e)))?;
 
     Argon2::default()
         .verify_password(body.password.as_bytes(), &parsed_hash)
         .map_err(|_| AppError::Unauthorized)?;
 
-    let token = create_session_token(&state, user.useid).await?;
+    let user_id = user
+        .try_get::<Uuid, _>("useid")
+        .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
+    let token = create_session_token(&state, user_id).await?;
 
     let user_public = serde_json::json!({
-        "useid": user.useid,
-        "usenm": user.usenm,
-        "useml": user.useml,
-        "usetm": user.usetm,
-        "useup": user.useup,
+        "useid": user_id,
+        "usenm": user.try_get::<String, _>("usenm").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "useml": user.try_get::<String, _>("useml").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "usetm": user.try_get::<chrono::DateTime<Utc>, _>("usetm").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
+        "useup": user.try_get::<chrono::DateTime<Utc>, _>("useup").map_err(|e| AppError::Internal(anyhow::Error::from(e)))?,
     });
 
     let cookie = build_session_cookie(&token, state.config.cookie_secure);
@@ -225,7 +229,8 @@ pub async fn logout(
 ) -> Result<impl IntoResponse, AppError> {
     if let Some(cookie) = jar.get("shikaku_session") {
         let token = cookie.value().to_string();
-        sqlx::query!("DELETE FROM TBL_SESSION WHERE sestk = $1", token)
+        sqlx::query("DELETE FROM TBL_SESSION WHERE sestk = $1")
+            .bind(token)
             .execute(&state.db)
             .await
             .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;

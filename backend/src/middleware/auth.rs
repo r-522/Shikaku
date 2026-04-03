@@ -6,6 +6,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use uuid::Uuid;
 
 use crate::{errors::AppError, AppState};
@@ -53,11 +54,11 @@ where
 
         let session_id = Uuid::parse_str(&claims.jti).map_err(|_| AppError::Unauthorized)?;
 
-        let session = sqlx::query!(
+        let session = sqlx::query(
             "SELECT sesid FROM TBL_SESSION WHERE sesid = $1 AND sestk = $2 AND sesex > NOW()",
-            session_id,
-            token
         )
+        .bind(session_id)
+        .bind(token)
         .fetch_optional(&app_state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -68,19 +69,17 @@ where
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AppError::Unauthorized)?;
 
-        let user = sqlx::query!(
-            "SELECT useid, usenm, useml FROM TBL_USER WHERE useid = $1",
-            user_id
-        )
-        .fetch_optional(&app_state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?
-        .ok_or(AppError::Unauthorized)?;
+        let user = sqlx::query("SELECT useid, usenm, useml FROM TBL_USER WHERE useid = $1")
+            .bind(user_id)
+            .fetch_optional(&app_state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?
+            .ok_or(AppError::Unauthorized)?;
 
         Ok(AuthUser {
-            useid: user.useid,
-            usenm: user.usenm,
-            useml: user.useml,
+            useid: user.try_get("useid").map_err(|_| AppError::Unauthorized)?,
+            usenm: user.try_get("usenm").map_err(|_| AppError::Unauthorized)?,
+            useml: user.try_get("useml").map_err(|_| AppError::Unauthorized)?,
         })
     }
 }

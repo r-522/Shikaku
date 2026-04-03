@@ -5,6 +5,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde_json::json;
+use sqlx::Row;
 use uuid::Uuid;
 
 use crate::{errors::AppError, middleware::auth::AuthUser, AppState};
@@ -13,15 +14,19 @@ pub async fn list_favorites(
     State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> Result<impl IntoResponse, AppError> {
-    let favs = sqlx::query!(
-        "SELECT favtg FROM TBL_FAVORI WHERE favus = $1 ORDER BY favtm DESC",
-        auth_user.useid
-    )
-    .fetch_all(&state.db)
-    .await
-    .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
+    let favs = sqlx::query("SELECT favtg FROM TBL_FAVORI WHERE favus = $1 ORDER BY favtm DESC")
+        .bind(auth_user.useid)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
 
-    let ids: Vec<Uuid> = favs.into_iter().map(|f| f.favtg).collect();
+    let ids: Vec<Uuid> = favs
+        .into_iter()
+        .map(|f| {
+            f.try_get("favtg")
+                .map_err(|e| AppError::Internal(anyhow::Error::from(e)))
+        })
+        .collect::<Result<Vec<Uuid>, AppError>>()?;
 
     Ok(Json(json!({"data": ids, "error": null})))
 }
@@ -36,7 +41,8 @@ pub async fn add_favorite(
     }
 
     // Verify target user exists
-    let target = sqlx::query!("SELECT useid FROM TBL_USER WHERE useid = $1", target_id)
+    let target = sqlx::query("SELECT useid FROM TBL_USER WHERE useid = $1")
+        .bind(target_id)
         .fetch_optional(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -48,17 +54,17 @@ pub async fn add_favorite(
     let favid = Uuid::new_v4();
     let now = Utc::now();
 
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO TBL_FAVORI (favid, favus, favtg, favtm)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT DO NOTHING
         "#,
-        favid,
-        auth_user.useid,
-        target_id,
-        now
     )
+    .bind(favid)
+    .bind(auth_user.useid)
+    .bind(target_id)
+    .bind(now)
     .execute(&state.db)
     .await
     .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -71,14 +77,12 @@ pub async fn remove_favorite(
     auth_user: AuthUser,
     Path(target_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    sqlx::query!(
-        "DELETE FROM TBL_FAVORI WHERE favus = $1 AND favtg = $2",
-        auth_user.useid,
-        target_id
-    )
-    .execute(&state.db)
-    .await
-    .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
+    sqlx::query("DELETE FROM TBL_FAVORI WHERE favus = $1 AND favtg = $2")
+        .bind(auth_user.useid)
+        .bind(target_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
 
     Ok(Json(json!({"data": null, "error": null})))
 }

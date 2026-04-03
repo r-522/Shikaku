@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::json;
+use sqlx::Row;
 
 use crate::{errors::AppError, middleware::auth::AuthUser, AppState};
 
@@ -21,10 +22,10 @@ pub async fn search_cert_master(
     let query = params.q.unwrap_or_default();
     let pattern = format!("%{}%", query);
 
-    let certs = sqlx::query!(
+    let certs = sqlx::query(
         "SELECT cerid, cernm, cerct, certm FROM TBL_CERMAS WHERE cernm ILIKE $1 ORDER BY cernm ASC LIMIT 20",
-        pattern
     )
+    .bind(pattern)
     .fetch_all(&state.db)
     .await
     .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -33,10 +34,10 @@ pub async fn search_cert_master(
         .into_iter()
         .map(|c| {
             json!({
-                "cerid": c.cerid,
-                "cernm": c.cernm,
-                "cerct": c.cerct,
-                "certm": c.certm,
+                "cerid": c.try_get::<uuid::Uuid, _>("cerid").ok(),
+                "cernm": c.try_get::<String, _>("cernm").ok(),
+                "cerct": c.try_get::<Option<String>, _>("cerct").ok().flatten(),
+                "certm": c.try_get::<chrono::DateTime<chrono::Utc>, _>("certm").ok(),
             })
         })
         .collect();
