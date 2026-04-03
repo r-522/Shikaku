@@ -7,7 +7,7 @@ pub async fn list_users(
     State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> Result<impl IntoResponse, AppError> {
-    let users = sqlx::query!(
+    let users = sqlx::query_unchecked!(
         r#"
         SELECT
             u.useid,

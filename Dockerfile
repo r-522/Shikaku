@@ -1,15 +1,18 @@
 # Stage 1: Build Vue frontend
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY frontend/ .
 RUN npm run build
 
 # Stage 2: Build Rust backend
-FROM rust:1.78-slim AS backend-builder
+FROM rust:1.88-bookworm AS backend-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+# sqlx macros require DATABASE_URL at compile time even for query_unchecked!
+ENV DATABASE_URL=postgres://postgres:postgres@localhost:5432/shikaku
+ENV SQLX_OFFLINE=true
 COPY backend/Cargo.toml backend/Cargo.lock* ./
 # Pre-fetch dependencies with a dummy main so the layer is cached
 RUN mkdir src && echo 'fn main(){}' > src/main.rs && cargo build --release && rm -rf src

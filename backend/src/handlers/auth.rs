@@ -92,7 +92,7 @@ async fn create_session_token(
     let expires_at = chrono::DateTime::<Utc>::from_timestamp(exp, 0)
         .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Invalid timestamp")))?;
 
-    sqlx::query!(
+    sqlx::query_unchecked!(
         "INSERT INTO TBL_SESSION (sesid, sesus, sestk, sesex, sestm) VALUES ($1, $2, $3, $4, $5)",
         session_id,
         user_id,
@@ -123,7 +123,7 @@ pub async fn signup(
         return Err(AppError::BadRequest("Username cannot be empty".to_string()));
     }
 
-    let existing = sqlx::query!("SELECT useid FROM TBL_USER WHERE useml = $1", body.email)
+    let existing = sqlx::query_unchecked!("SELECT useid FROM TBL_USER WHERE useml = $1", body.email)
         .fetch_optional(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -142,7 +142,7 @@ pub async fn signup(
     let user_id = Uuid::new_v4();
     let now = Utc::now();
 
-    let user = sqlx::query!(
+    let user = sqlx::query_unchecked!(
         "INSERT INTO TBL_USER (useid, usenm, useml, usepw, usetm, useup) VALUES ($1, $2, $3, $4, $5, $6) RETURNING useid, usenm, useml, usetm, useup",
         user_id,
         body.username.trim(),
@@ -183,7 +183,7 @@ pub async fn login(
         return Err(AppError::BadRequest("Email and password are required".to_string()));
     }
 
-    let user = sqlx::query!(
+    let user = sqlx::query_unchecked!(
         "SELECT useid, usenm, useml, usepw, usetm, useup FROM TBL_USER WHERE useml = $1",
         body.email.to_lowercase()
     )
@@ -225,7 +225,7 @@ pub async fn logout(
 ) -> Result<impl IntoResponse, AppError> {
     if let Some(cookie) = jar.get("shikaku_session") {
         let token = cookie.value().to_string();
-        sqlx::query!("DELETE FROM TBL_SESSION WHERE sestk = $1", token)
+        sqlx::query_unchecked!("DELETE FROM TBL_SESSION WHERE sestk = $1", token)
             .execute(&state.db)
             .await
             .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;

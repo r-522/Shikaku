@@ -53,7 +53,7 @@ where
 
         let session_id = Uuid::parse_str(&claims.jti).map_err(|_| AppError::Unauthorized)?;
 
-        let session = sqlx::query!(
+        let session = sqlx::query_unchecked!(
             "SELECT sesid FROM TBL_SESSION WHERE sesid = $1 AND sestk = $2 AND sesex > NOW()",
             session_id,
             token
@@ -68,7 +68,7 @@ where
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AppError::Unauthorized)?;
 
-        let user = sqlx::query!(
+        let user = sqlx::query_unchecked!(
             "SELECT useid, usenm, useml FROM TBL_USER WHERE useid = $1",
             user_id
         )
