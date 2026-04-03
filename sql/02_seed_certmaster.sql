@@ -1,0 +1,47 @@
+-- Seed TBL_CERMAS with common Japanese IT / business certifications
+-- Safe to re-run (ON CONFLICT DO NOTHING)
+
+INSERT INTO TBL_CERMAS (cernm, cerct) VALUES
+  -- IT系
+  ('基本情報技術者試験', 'IT・情報処理'),
+  ('応用情報技術者試験', 'IT・情報処理'),
+  ('情報処理安全確保支援士試験', 'IT・情報処理'),
+  ('ITパスポート試験', 'IT・情報処理'),
+  ('AWS認定ソリューションアーキテクト – アソシエイト', 'クラウド'),
+  ('AWS認定デベロッパー – アソシエイト', 'クラウド'),
+  ('AWS認定SysOpsアドミニストレーター – アソシエイト', 'クラウド'),
+  ('AWS認定ソリューションアーキテクト – プロフェッショナル', 'クラウド'),
+  ('Google Cloud Professional Cloud Architect', 'クラウド'),
+  ('Google Cloud Associate Cloud Engineer', 'クラウド'),
+  ('Microsoft Azure Administrator (AZ-104)', 'クラウド'),
+  ('Microsoft Azure Solutions Architect Expert (AZ-305)', 'クラウド'),
+  ('CompTIA Security+', 'セキュリティ'),
+  ('CompTIA Network+', 'ネットワーク'),
+  ('LPIC-1', 'Linux'),
+  ('LPIC-2', 'Linux'),
+  ('Linux Foundation Certified System Administrator (LFCS)', 'Linux'),
+  ('Certified Kubernetes Administrator (CKA)', 'コンテナ'),
+  ('Docker Certified Associate', 'コンテナ'),
+  ('Cisco CCNA', 'ネットワーク'),
+  ('Cisco CCNP', 'ネットワーク'),
+  -- ビジネス系
+  ('日商簿記3級', 'ビジネス'),
+  ('日商簿記2級', 'ビジネス'),
+  ('日商簿記1級', 'ビジネス'),
+  ('TOEIC 600点以上', '語学'),
+  ('TOEIC 730点以上', '語学'),
+  ('TOEIC 900点以上', '語学'),
+  ('英検準2級', '語学'),
+  ('英検2級', '語学'),
+  ('英検準1級', '語学'),
+  ('英検1級', '語学'),
+  ('PMP（プロジェクトマネジメントプロフェッショナル）', 'マネジメント'),
+  ('PRINCE2 Foundation', 'マネジメント'),
+  ('データサイエンティスト検定', 'データサイエンス'),
+  ('統計検定2級', 'データサイエンス'),
+  ('G検定', 'AI・機械学習'),
+  ('E資格', 'AI・機械学習'),
+  ('Oracle Java SE 17 Developer', 'プログラミング'),
+  ('Oracle Database SQL', 'データベース'),
+  ('Oracle Database Administrator Certified Professional', 'データベース')
+ON CONFLICT (cernm) DO NOTHING;

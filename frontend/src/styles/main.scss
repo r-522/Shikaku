@@ -1,0 +1,180 @@
+// ─── Google Fonts ──────────────────────────────────────────────────────────────
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+// ─── Bootstrap variable overrides (MUST come before @use 'bootstrap') ──────────
+$primary:   #1a1a2e;
+$secondary: #4b5563;
+$success:   #059669;
+$danger:    #dc2626;
+$warning:   #d97706;
+$info:      #0891b2;
+$light:     #fafaf9;
+$dark:      #111827;
+
+$font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
+$body-bg:    #fafaf9;
+$body-color: #111827;
+
+$border-radius:    6px;
+$border-radius-sm: 4px;
+$border-radius-lg: 10px;
+
+$btn-border-radius:    6px;
+$btn-border-radius-sm: 4px;
+$btn-border-radius-lg: 8px;
+
+$input-border-color:        #d1d5db;
+$input-focus-border-color:  #1a1a2e;
+$input-focus-box-shadow:    0 0 0 3px rgba(26, 26, 46, 0.12);
+
+$form-label-font-weight: 500;
+$form-label-font-size:   0.875rem;
+
+// ─── Bootstrap ────────────────────────────────────────────────────────────────
+@use 'bootstrap/scss/bootstrap';
+
+// ─── Base ─────────────────────────────────────────────────────────────────────
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+  color: #111827;
+  background-color: #fafaf9;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ─── Custom scrollbar ─────────────────────────────────────────────────────────
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.35);
+  border-radius: 3px;
+
+  &:hover {
+    background: rgba(75, 85, 99, 0.6);
+  }
+}
+
+// ─── Interactive element transitions ──────────────────────────────────────────
+a,
+button,
+input,
+select,
+textarea {
+  transition: all 150ms ease;
+}
+
+// ─── Typography helpers ───────────────────────────────────────────────────────
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+// ─── Status badge styles ──────────────────────────────────────────────────────
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.6;
+
+  &--studying {
+    background-color: rgba(8, 145, 178, 0.12);
+    color: #0e7490;
+  }
+
+  &--passed {
+    background-color: rgba(5, 150, 105, 0.12);
+    color: #047857;
+  }
+
+  &--failed {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
+  }
+
+  &--abandoned {
+    background-color: rgba(107, 114, 128, 0.12);
+    color: #6b7280;
+  }
+}
+
+// ─── Section divider ──────────────────────────────────────────────────────────
+.section-divider {
+  border: none;
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+  margin: 0;
+}
+
+// ─── Toast animation keyframes ────────────────────────────────────────────────
+@keyframes slideInRight {
+  from {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+}
+
+@keyframes scalePulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+// ─── App layout ───────────────────────────────────────────────────────────────
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+// ─── Utility: visually-hidden (for a11y) ──────────────────────────────────────
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
