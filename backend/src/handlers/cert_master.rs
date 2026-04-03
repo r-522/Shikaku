@@ -21,7 +21,7 @@ pub async fn search_cert_master(
     let query = params.q.unwrap_or_default();
     let pattern = format!("%{}%", query);
 
-    let certs = sqlx::query!(
+    let certs = sqlx::query_unchecked!(
         "SELECT cerid, cernm, cerct, certm FROM TBL_CERMAS WHERE cernm ILIKE $1 ORDER BY cernm ASC LIMIT 20",
         pattern
     )

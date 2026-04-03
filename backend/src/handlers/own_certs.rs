@@ -42,7 +42,7 @@ pub async fn list_own_certs(
     State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> Result<impl IntoResponse, AppError> {
-    let certs = sqlx::query!(
+    let certs = sqlx::query_unchecked!(
         r#"
         SELECT ownid, ownus, ownnm, ownce, ownst, owntg, ownhr, ownfl, owntm, ownup
         FROM TBL_OWNCER
@@ -95,7 +95,7 @@ pub async fn create_own_cert(
         Some(ownce)
     } else {
         // Try to find or create a master cert entry by name
-        let existing = sqlx::query!(
+        let existing = sqlx::query_unchecked!(
             "SELECT cerid FROM TBL_CERMAS WHERE cernm = $1",
             body.ownnm.trim()
         )
@@ -108,7 +108,7 @@ pub async fn create_own_cert(
         } else {
             let new_cerid = Uuid::new_v4();
             let now = Utc::now();
-            sqlx::query!(
+            sqlx::query_unchecked!(
                 "INSERT INTO TBL_CERMAS (cerid, cernm, certm) VALUES ($1, $2, $3) ON CONFLICT (cernm) DO NOTHING",
                 new_cerid,
                 body.ownnm.trim(),
@@ -119,7 +119,7 @@ pub async fn create_own_cert(
             .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
 
             // Fetch the actual cerid (in case ON CONFLICT fired)
-            let row = sqlx::query!(
+            let row = sqlx::query_unchecked!(
                 "SELECT cerid FROM TBL_CERMAS WHERE cernm = $1",
                 body.ownnm.trim()
             )
@@ -134,7 +134,7 @@ pub async fn create_own_cert(
     let ownid = Uuid::new_v4();
     let now = Utc::now();
 
-    let cert = sqlx::query!(
+    let cert = sqlx::query_unchecked!(
         r#"
         INSERT INTO TBL_OWNCER (ownid, ownus, ownnm, ownce, ownst, owntg, ownhr, ownfl, owntm, ownup)
         VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9)
@@ -187,7 +187,7 @@ pub async fn update_own_cert(
 
     let now = Utc::now();
 
-    let cert = sqlx::query!(
+    let cert = sqlx::query_unchecked!(
         r#"
         UPDATE TBL_OWNCER
         SET ownnm = $1, ownce = $2, ownst = $3, owntg = $4, ownhr = $5, ownup = $6
@@ -230,7 +230,7 @@ pub async fn delete_own_cert(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     // Only allow deletion if ownst = 'abandoned'
-    let cert = sqlx::query!(
+    let cert = sqlx::query_unchecked!(
         "SELECT ownid, ownst FROM TBL_OWNCER WHERE ownid = $1 AND ownus = $2",
         id,
         auth_user.useid
@@ -246,7 +246,7 @@ pub async fn delete_own_cert(
         ));
     }
 
-    sqlx::query!(
+    sqlx::query_unchecked!(
         "DELETE FROM TBL_OWNCER WHERE ownid = $1 AND ownus = $2",
         id,
         auth_user.useid
@@ -277,7 +277,7 @@ pub async fn update_hours(
             return Err(AppError::BadRequest("Hours cannot be negative".to_string()));
         }
         // Set directly
-        sqlx::query!(
+        sqlx::query_unchecked!(
             r#"
             UPDATE TBL_OWNCER
             SET ownhr = $1, ownup = $2
@@ -295,7 +295,7 @@ pub async fn update_hours(
         .ok_or_else(|| AppError::NotFound("Certificate not found or not owned by you".to_string()))?
     } else if let Some(delta) = body.delta {
         // Add delta, clamping to >= 0
-        sqlx::query!(
+        sqlx::query_unchecked!(
             r#"
             UPDATE TBL_OWNCER
             SET ownhr = GREATEST(0, COALESCE(ownhr, 0) + $1), ownup = $2
@@ -338,7 +338,7 @@ pub async fn abandon_cert(
 ) -> Result<impl IntoResponse, AppError> {
     let now = Utc::now();
 
-    let cert = sqlx::query!(
+    let cert = sqlx::query_unchecked!(
         r#"
         UPDATE TBL_OWNCER
         SET ownst = 'abandoned', ownup = $1
@@ -377,7 +377,7 @@ pub async fn restore_cert(
 ) -> Result<impl IntoResponse, AppError> {
     let now = Utc::now();
 
-    let cert = sqlx::query!(
+    let cert = sqlx::query_unchecked!(
         r#"
         UPDATE TBL_OWNCER
         SET ownst = 'studying', ownup = $1

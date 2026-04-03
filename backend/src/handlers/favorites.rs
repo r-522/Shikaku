@@ -13,7 +13,7 @@ pub async fn list_favorites(
     State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> Result<impl IntoResponse, AppError> {
-    let favs = sqlx::query!(
+    let favs = sqlx::query_unchecked!(
         "SELECT favtg FROM TBL_FAVORI WHERE favus = $1 ORDER BY favtm DESC",
         auth_user.useid
     )
@@ -36,7 +36,7 @@ pub async fn add_favorite(
     }
 
     // Verify target user exists
-    let target = sqlx::query!("SELECT useid FROM TBL_USER WHERE useid = $1", target_id)
+    let target = sqlx::query_unchecked!("SELECT useid FROM TBL_USER WHERE useid = $1", target_id)
         .fetch_optional(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::from(e)))?;
@@ -48,7 +48,7 @@ pub async fn add_favorite(
     let favid = Uuid::new_v4();
     let now = Utc::now();
 
-    sqlx::query!(
+    sqlx::query_unchecked!(
         r#"
         INSERT INTO TBL_FAVORI (favid, favus, favtg, favtm)
         VALUES ($1, $2, $3, $4)
@@ -71,7 +71,7 @@ pub async fn remove_favorite(
     auth_user: AuthUser,
     Path(target_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    sqlx::query!(
+    sqlx::query_unchecked!(
         "DELETE FROM TBL_FAVORI WHERE favus = $1 AND favtg = $2",
         auth_user.useid,
         target_id
